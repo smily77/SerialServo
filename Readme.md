@@ -2,7 +2,7 @@
 
 Arduino library for Feetech bus servos (SCS/STS protocol) on ESP32 and compatible boards.
 
-Supports **ST3020** (STS, 360°, continuous rotation) and **SC15** (SCS, 180°) on a shared half-duplex UART bus.
+Supports **ST3020 / ST3215** (STS, 360°, continuous rotation) and **SC15** (SCS, 180°) on a shared half-duplex UART bus.
 
 ---
 
@@ -298,6 +298,7 @@ Serial.println(moving ? "yes" : "no");
 FeetechBus            protocol framing, checksum, UART I/O
   └── FeetechDevice   register map, endian + sign encoding, full API
         ├── FeetechST3020   STS family, 4096 ticks/rev, degToTicks()
+        │     FeetechST3215  (type alias — identical register map)
         └── FeetechSC15     SCS family, 1024 ticks, big-endian
 ```
 
@@ -318,6 +319,19 @@ public:
   }
 };
 ```
+
+---
+
+## Supported Servo Models
+
+| Class | Alias | Protocol | Ticks/rev | Max speed |
+|-------|-------|----------|-----------|-----------|
+| `FeetechST3020` | — | STS (little-endian, bit-15 sign) | 4096 | ±32767 |
+| `FeetechST3215` | = `FeetechST3020` | STS (identical register map) | 4096 | ±32767 |
+| `FeetechSC15` | — | SCS (big-endian, bit-10 sign) | 1024 | ±1023 |
+
+ST3020 and ST3215 share the same register map, the same STS protocol, and the same 12-bit encoder.
+The differences are purely physical (form factor, torque, voltage range).
 
 ---
 
