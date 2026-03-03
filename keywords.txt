@@ -1,0 +1,4 @@
+FeetechBus	KEYWORD1
+FeetechDevice	KEYWORD1
+FeetechST3020	KEYWORD1
+FeetechSC15	KEYWORD1
