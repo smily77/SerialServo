@@ -177,7 +177,7 @@ bool FeetechBus::readStatusPacket(uint8_t expectedId,
   return true;
 }
 
-bool FeetechBus::writeData(uint8_t id, uint8_t address, const uint8_t* data, uint8_t len) {
+bool FeetechBus::writeData(uint8_t id, uint8_t address, const uint8_t* data, uint8_t len, bool async) {
   if (!data || len == 0) return false;
   if (len > 60) return false;
 
@@ -185,7 +185,68 @@ bool FeetechBus::writeData(uint8_t id, uint8_t address, const uint8_t* data, uin
   buf[0] = address;
   memcpy(&buf[1], data, len);
 
-  return writePacket(id, 0x03 /*WRITE*/, buf, (uint8_t)(len + 1));
+  const uint8_t inst = async ? 0x04 /*REGWRITE*/ : 0x03 /*WRITE*/;
+  return writePacket(id, inst, buf, (uint8_t)(len + 1));
+}
+
+bool FeetechBus::triggerAction() {
+  // ACTION (0x05) is always sent to broadcast 0xFE — bypasses forbidBroadcast intentionally
+  const uint8_t id   = 0xFE;
+  const uint8_t len  = 2; // INST + CHK
+  const uint8_t inst = 0x05;
+  const uint8_t chk  = (uint8_t)(~((uint16_t)id + len + inst) & 0xFF);
+
+  delayMicroseconds(_opt.interFrameGapUs);
+  flushInput();
+  setTxMode();
+
+  _ser.write(0xFF); _ser.write(0xFF);
+  _ser.write(id);   _ser.write(len);
+  _ser.write(inst); _ser.write(chk);
+
+  _ser.flush();
+  flushInput();
+  setRxMode();
+  return true;
+}
+
+bool FeetechBus::syncWrite(uint8_t startAddr, uint8_t dataLen,
+                           uint8_t count, const uint8_t* ids, const uint8_t* data) {
+  if (!ids || !data || count == 0 || dataLen == 0) return false;
+
+  // LEN = INST(1) + startAddr(1) + dataLen(1) + count*(id(1)+data(dataLen)) + CHK(1)
+  const uint16_t len16 = 4u + (uint16_t)count * (1u + dataLen);
+  if (len16 > 255u) return false;
+  const uint8_t len  = (uint8_t)len16;
+  const uint8_t inst = 0x83; // SYNC WRITE
+
+  uint16_t chkSum = (uint16_t)0xFE + len + inst + startAddr + dataLen;
+  for (uint8_t i = 0; i < count; i++) {
+    chkSum += ids[i];
+    for (uint8_t j = 0; j < dataLen; j++)
+      chkSum += data[(uint16_t)i * dataLen + j];
+  }
+  const uint8_t chk = (uint8_t)(~chkSum & 0xFF);
+
+  delayMicroseconds(_opt.interFrameGapUs);
+  flushInput();
+  setTxMode();
+
+  _ser.write(0xFF); _ser.write(0xFF);
+  _ser.write((uint8_t)0xFE); _ser.write(len);
+  _ser.write(inst);
+  _ser.write(startAddr); _ser.write(dataLen);
+  for (uint8_t i = 0; i < count; i++) {
+    _ser.write(ids[i]);
+    for (uint8_t j = 0; j < dataLen; j++)
+      _ser.write(data[(uint16_t)i * dataLen + j]);
+  }
+  _ser.write(chk);
+
+  _ser.flush();
+  flushInput(); // kein Status-Response bei SYNC WRITE
+  setRxMode();
+  return true;
 }
 
 bool FeetechBus::readData(uint8_t id, uint8_t address, uint8_t len, uint8_t* out) {

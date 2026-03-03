@@ -45,12 +45,20 @@ public:
                         uint8_t* inOutParamLen,
                         uint16_t timeoutMs = 0);
 
-  // Convenience: write/read "data" using instruction 0x03/0x02
-  bool writeData(uint8_t id, uint8_t address, const uint8_t* data, uint8_t len);
+  // Convenience: write/read "data" using instruction 0x03 (WRITE) or 0x04 (REGWRITE if async)
+  bool writeData(uint8_t id, uint8_t address, const uint8_t* data, uint8_t len, bool async = false);
   bool readData(uint8_t id, uint8_t address, uint8_t len, uint8_t* out);
 
   // Ping (0x01) -> status packet
   bool ping(uint8_t id);
+
+  // ACTION (0x05) broadcast: executes all pending async (REGWRITE) commands simultaneously
+  bool triggerAction();
+
+  // SYNC WRITE (0x83) broadcast: write dataLen bytes to startAddr on multiple servos at once.
+  // data layout: [id0_byte0..id0_byte(dataLen-1), id1_byte0..., ...] (row-major, count rows)
+  bool syncWrite(uint8_t startAddr, uint8_t dataLen,
+                 uint8_t count, const uint8_t* ids, const uint8_t* data);
 
   const Options& options() const { return _opt; }
 
