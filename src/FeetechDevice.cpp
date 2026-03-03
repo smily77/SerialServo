@@ -101,7 +101,13 @@ bool FeetechDevice::setStatusReturnLevel(uint8_t level) {
 }
 
 bool FeetechDevice::setMode(ServoMode mode) {
-  return write8(_reg.ADDR_OPERATION_MODE, static_cast<uint8_t>(mode));
+  // OPERATION_MODE (0x21) liegt im EEPROM-Bereich → EEPROM muss entsperrt werden
+  if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
+  delay(5);
+  bool ok = write8(_reg.ADDR_OPERATION_MODE, static_cast<uint8_t>(mode));
+  delay(5);
+  (void)write8(_reg.ADDR_WRITE_LOCK, 1);
+  return ok;
 }
 
 bool FeetechDevice::setAcceleration(uint8_t acc) {
