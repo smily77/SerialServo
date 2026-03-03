@@ -14,9 +14,9 @@ bool FeetechBus::begin(const Options& opt) {
     setRxMode();
   }
 
-  // NOTE: For AVR, begin(baud) exists. For ESP32, begin(baud, config, rx, tx) exists.
+  // NOTE: For AVR, begin(baud, config) exists. For ESP32, begin(baud, config, rx, tx) exists.
   // We keep begin(opt) generic; user should call begin1Wire/beginPins on ESP32.
-  _ser.begin(_opt.baud);
+  _ser.begin(_opt.baud, _opt.serialConfig);
   flushInput();
   return true;
 }
@@ -100,6 +100,7 @@ bool FeetechBus::writePacket(uint8_t id, uint8_t inst, const uint8_t* params, ui
   _ser.write(chk);
 
   _ser.flush();
+  flushInput(); // 1-Wire: TX spiegelt sich auf RX → Echo-Bytes verwerfen
   setRxMode();
   return true;
 }
@@ -141,6 +142,7 @@ bool FeetechBus::readStatusPacket(uint8_t expectedId,
   if (!readByte(len)) return false;
   if (!readByte(err)) return false;
 
+  if (len < 2) return false; // Mindestlänge: ERROR + CHK
   const uint8_t paramLen = (uint8_t)(len - 2); // after ERROR, before CHK
 
   // Read params into temp (so we can validate checksum strictly even if caller requests fewer)
@@ -204,7 +206,6 @@ bool FeetechBus::ping(uint8_t id) {
   if (!writePacket(id, 0x01 /*PING*/, nullptr, 0)) return false;
 
   uint8_t err = 0;
-  uint8_t params[1];
-  uint8_t plen = sizeof(params);
-  return readStatusPacket(id, &err, params, &plen, _opt.rxTimeoutMs) && (err == 0);
+  uint8_t plen = 0; // Ping-Response hat keine Parameter
+  return readStatusPacket(id, &err, nullptr, &plen, _opt.rxTimeoutMs) && (err == 0);
 }
