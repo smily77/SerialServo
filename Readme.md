@@ -49,7 +49,7 @@ bus.beginPins(1000000, 18, 17);  // beginPins(baud, rxPin, txPin)
 #include <FeetechST3020.h>
 
 FeetechBus    bus(Serial2);
-FeetechST3020 st(bus, 11);   // servo ID 11
+FeetechST3020 st(bus, 1);    // servo ID (factory default = 1; use BusScan to find yours)
 
 void setup() {
   bus.beginPins(1000000, 18, 17);  // 1 MBaud, RX=GPIO18, TX=GPIO17
@@ -163,11 +163,13 @@ st.moveTime(st.degToTicks(0), 500, 500);
 
 | Example | What it shows |
 |---------|---------------|
-| `DualServo_SameUART` | ST3020 + SC15 on one bus — init, move, sequential position read |
+| `BusScan` | Scan all IDs 1–253 at multiple baud rates — find connected servos and their IDs |
 | `BasicPositionControl` | Move through several angles, wait for completion via `isMoving()`, read position and speed |
 | `ContinuousRotation` | Velocity mode — forward / stop / reverse / stop with live speed readback |
-| `SyncedMove` | Two servos start simultaneously with `moveTimeAsync` + `triggerAction` |
 | `StatusMonitor` | Live readout of position, speed, temperature, and current |
+| `DualServo_SameUART` | ST3020 + SC15 on one bus — init, move, sequential position read |
+| `SyncedMove` | Two servos start simultaneously with `moveTimeAsync` + `triggerAction` |
+| `RawDiag` | Raw hex dump of TX/RX bytes — diagnose wiring without any library abstraction |
 
 ---
 

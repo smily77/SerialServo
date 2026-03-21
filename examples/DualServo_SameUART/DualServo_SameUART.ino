@@ -1,3 +1,14 @@
+// DualServo_SameUART.ino
+//
+// ST3020 and SC15 on the same half-duplex UART bus.
+// Shows init, a single move per servo, and sequential position reads.
+//
+// Wiring (ESP32):
+//   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
+//   GPIO18 RX ----------+
+//   GND   -------------- SERVO GND
+//   5-8.4V ------------- SERVO VCC
+
 #include <Arduino.h>
 #include <FeetechBus.h>
 #include <FeetechST3020.h>

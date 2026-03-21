@@ -71,7 +71,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("Feetech Bus Scanner");
-  Serial.println("Make sure servo is powered and wired to GPIO17 via 1k resistor.");
+  Serial.println("Wiring: TX(GPIO17) --[1k]--> BUS <-- RX(GPIO18). Servo powered.");
 
   for (int i = 0; i < NUM_RATES; i++) {
     scanAtBaud(BAUD_RATES[i]);
