@@ -1,13 +1,16 @@
 // BusScan.ino
 //
 // Scans all 253 valid servo IDs on the bus and prints each one that responds.
-// Useful for discovering which servos are connected and what IDs they have.
+// Tries multiple baud rates so you can find servos even if the baud rate is unknown.
 //
 // Output example:
-//   Scanning bus (IDs 1..253) ...
-//   [  3] FOUND  ping ok
+//   === Baud: 1000000 ===
+//   [  1] FOUND  ping ok
 //   [ 11] FOUND  ping ok
-//   Scan complete: 2 servo(s) found.
+//   Scan at 1000000 baud complete: 2 servo(s) found.
+//
+//   === Baud: 500000 ===
+//   No servos found at this baud rate.
 //
 // Wiring (ESP32):
 //   GPIO17 --[1kΩ]--> SERVO BUS DATA
@@ -19,18 +22,21 @@
 #include <FeetechBus.h>
 #include <FeetechDevice.h>
 
-static constexpr int      BUS_PIN = 17;     // <-- your ESP32 GPIO
-static constexpr uint32_t BAUD    = 1000000;
+static constexpr int BUS_PIN = 17; // <-- your ESP32 GPIO
+
+// Feetech servos ship at 1 Mbps from factory.
+// List additional rates here if yours was changed.
+static const uint32_t BAUD_RATES[] = { 1000000, 500000, 115200 };
+static constexpr int  NUM_RATES    = sizeof(BAUD_RATES) / sizeof(BAUD_RATES[0]);
 
 FeetechBus bus(Serial2);
 
-void setup() {
-  Serial.begin(115200);
-  delay(200);
+void scanAtBaud(uint32_t baud) {
+  Serial.print("\n=== Baud: ");
+  Serial.print(baud);
+  Serial.println(" ===");
 
-  bus.begin1Wire(BAUD, BUS_PIN);
-
-  Serial.println("Scanning bus (IDs 1..253) ...");
+  bus.begin1Wire(baud, BUS_PIN);
 
   int found = 0;
 
@@ -46,15 +52,31 @@ void setup() {
       Serial.println("] FOUND  ping ok");
     }
 
-    // Short pause between pings to avoid flooding the bus.
-    // Each unanswered ping already waits for the timeout inside FeetechBus.
-    delay(5);
+    delay(5); // short gap between pings to avoid flooding the bus
   }
 
-  Serial.println();
-  Serial.print("Scan complete: ");
+  Serial.print("Scan at ");
+  Serial.print(baud);
+  Serial.print(" baud complete: ");
   Serial.print(found);
   Serial.println(" servo(s) found.");
+  if (found == 0) Serial.println("No servos found at this baud rate.");
+
+  bus.end();
+  delay(50);
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+  Serial.println("Feetech Bus Scanner");
+  Serial.println("Make sure servo is powered and wired to GPIO17 via 1k resistor.");
+
+  for (int i = 0; i < NUM_RATES; i++) {
+    scanAtBaud(BAUD_RATES[i]);
+  }
+
+  Serial.println("\nDone. Reset to scan again.");
 }
 
 void loop() {}

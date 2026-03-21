@@ -69,6 +69,7 @@ private:
   void setTxMode();
   void setRxMode();
   void flushInput();
+  void drainEcho(uint8_t count); // 1-Wire: wait for exactly N echo bytes after TX
 
   static uint8_t checksum(uint8_t id, uint8_t len, uint8_t instOrErr, const uint8_t* params, uint8_t paramLen);
 };
