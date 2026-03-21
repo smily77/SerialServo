@@ -25,10 +25,10 @@
 // -----------------------------------------------------------------------
 // Konfiguration
 // -----------------------------------------------------------------------
-#define WIRING_MODE 'A'   // 'A' = 1-Wire, 'B' = separate RX/TX
+#define WIRING_MODE 'B'   // 'B' = separate RX/TX (empfohlen), 'A' = 1-Wire (nur ohne 1kΩ)
 
-static constexpr int      TX_PIN  = 17;
-static constexpr int      RX_PIN  = 16;   // nur für Variante B relevant
+static constexpr int      TX_PIN  = 17;   // TX durch 1kΩ zum Bus
+static constexpr int      RX_PIN  = 18;   // RX direkt an den Bus (selber Knoten nach dem Widerstand)
 static constexpr uint32_t BAUD    = 1000000;
 
 // Ping-Paket für IDs 1..5 (Feetech Factory-Default = ID 1)

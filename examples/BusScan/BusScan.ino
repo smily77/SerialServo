@@ -13,16 +13,17 @@
 //   No servos found at this baud rate.
 //
 // Wiring (ESP32):
-//   GPIO17 --[1kΩ]--> SERVO BUS DATA
-//   GPIO17 <--------- SERVO BUS DATA
-//   GND   ----------- SERVO GND
-//   5-8.4V ---------- SERVO VCC
+//   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
+//   GPIO18 RX ----------+
+//   GND   -------------- SERVO GND
+//   5-8.4V ------------- SERVO VCC
 
 #include <Arduino.h>
 #include <FeetechBus.h>
 #include <FeetechDevice.h>
 
-static constexpr int BUS_PIN = 17; // <-- your ESP32 GPIO
+static constexpr int TX_PIN = 17;    // <-- TX through 1kΩ to bus
+static constexpr int RX_PIN = 18;    // <-- RX directly to bus
 
 // Feetech servos ship at 1 Mbps from factory.
 // List additional rates here if yours was changed.
@@ -36,7 +37,7 @@ void scanAtBaud(uint32_t baud) {
   Serial.print(baud);
   Serial.println(" ===");
 
-  bus.begin1Wire(baud, BUS_PIN);
+  bus.beginPins(baud, RX_PIN, TX_PIN);
 
   int found = 0;
 

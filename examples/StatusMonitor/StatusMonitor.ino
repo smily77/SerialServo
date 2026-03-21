@@ -13,16 +13,17 @@
 //   pos  speed  temp_C  current_A  moving
 //
 // Wiring (ESP32):
-//   GPIO17 --[1kΩ]--> SERVO BUS DATA
-//   GPIO17 <--------- SERVO BUS DATA
-//   GND   ----------- SERVO GND
-//   5-8.4V ---------- SERVO VCC
+//   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
+//   GPIO18 RX ----------+
+//   GND   -------------- SERVO GND
+//   5-8.4V ------------- SERVO VCC
 
 #include <Arduino.h>
 #include <FeetechBus.h>
 #include <FeetechST3020.h>
 
-static constexpr int      BUS_PIN          = 17;    // <-- your ESP32 GPIO
+static constexpr int      TX_PIN           = 17;    // <-- TX through 1kΩ to bus
+static constexpr int      RX_PIN           = 18;    // <-- RX directly to bus
 static constexpr uint32_t BAUD             = 1000000;
 static constexpr uint32_t PRINT_INTERVAL   = 200;   // ms between readings
 static constexpr uint32_t SWEEP_INTERVAL   = 3000;  // ms between sweep moves
@@ -67,7 +68,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  bus.begin1Wire(BAUD, BUS_PIN);
+  bus.beginPins(BAUD, RX_PIN, TX_PIN);
 
   if (!st.ping()) {
     Serial.println("ERROR: servo not found — check ID, baud, wiring");

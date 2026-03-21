@@ -3,8 +3,9 @@
 #include <FeetechST3020.h>
 #include <FeetechSC15.h>
 
-static constexpr int BUS_PIN = 17;      // <-- set your ESP32 GPIO here
-static constexpr uint32_t BAUD = 1000000;
+static constexpr int      TX_PIN = 17;    // <-- TX through 1kΩ to bus
+static constexpr int      RX_PIN = 18;    // <-- RX directly to bus
+static constexpr uint32_t BAUD   = 1000000;
 
 FeetechBus bus(Serial2);
 
@@ -15,8 +16,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  // ESP32 1-wire UART: RX=TX=BUS_PIN
-  bus.begin1Wire(BAUD, BUS_PIN);
+  bus.beginPins(BAUD, RX_PIN, TX_PIN);
 
   Serial.println("Pinging servos...");
   Serial.print("ST3020 ping: "); Serial.println(st.ping() ? "OK" : "FAIL");

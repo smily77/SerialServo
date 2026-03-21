@@ -10,18 +10,19 @@
 // coordinated motion matters.
 //
 // Wiring (ESP32):
-//   GPIO17 --[1kΩ]--> SERVO BUS DATA
-//   GPIO17 <--------- SERVO BUS DATA
-//   GND   ----------- SERVO GND
-//   5-8.4V ---------- SERVO VCC
+//   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
+//   GPIO18 RX ----------+
+//   GND   -------------- SERVO GND
+//   5-8.4V ------------- SERVO VCC
 
 #include <Arduino.h>
 #include <FeetechBus.h>
 #include <FeetechST3020.h>
 #include <FeetechSC15.h>
 
-static constexpr int      BUS_PIN = 17;     // <-- your ESP32 GPIO
-static constexpr uint32_t BAUD    = 1000000;
+static constexpr int      TX_PIN = 17;    // <-- TX through 1kΩ to bus
+static constexpr int      RX_PIN = 18;    // <-- RX directly to bus
+static constexpr uint32_t BAUD   = 1000000;
 
 FeetechBus    bus(Serial2);
 FeetechST3020 st(bus, 11);  // ST3020 servo ID 11
@@ -48,7 +49,7 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  bus.begin1Wire(BAUD, BUS_PIN);
+  bus.beginPins(BAUD, RX_PIN, TX_PIN);
 
   Serial.print("ST3020 ping: "); Serial.println(st.ping() ? "OK" : "FAIL");
   Serial.print("SC15   ping: "); Serial.println(sc.ping() ? "OK" : "FAIL");

@@ -8,7 +8,7 @@ Supports **ST3020 / ST3215** (STS, 360°, continuous rotation) and **SC15** (SCS
 
 ## Features
 
-- Half-duplex 1-Wire UART — single GPIO, no direction pin needed
+- Half-duplex UART — two GPIOs, no direction pin needed (TX → 1kΩ → bus, RX direct to bus)
 - Typed device classes — no accidental cross-model register access
 - Endian-correct 16-bit register I/O (STS = little-endian, SCS = big-endian)
 - Sign-bit encoding per family (STS bit 15, SCS bit 10)
@@ -20,19 +20,25 @@ Supports **ST3020 / ST3215** (STS, 360°, continuous rotation) and **SC15** (SCS
 
 ---
 
-## Hardware: 1-Wire Half-Duplex (ESP32)
+## Hardware: Half-Duplex Wiring (ESP32)
 
 ```
-ESP32 GPIO17 ---[1kΩ]--- SERVO BUS DATA
-ESP32 GPIO17 <---------- SERVO BUS DATA
-GND         ------------ SERVO GND
-5–8.4 V     ------------ SERVO VCC
+ESP32 GPIO17 TX ---[1kΩ]---+--- SERVO BUS DATA
+ESP32 GPIO18 RX ------------+
+GND                --------- SERVO GND
+5–8.4 V            --------- SERVO VCC
 ```
 
-The 1 kΩ resistor decouples TX from the bus and prevents echo corruption.
-Recommended, though many setups work without it.
+The **1 kΩ resistor** sits between the TX pin and the shared bus node.
+The **RX pin** connects **directly** to the bus node (same junction, no resistor).
 
-For separate RX/TX pins use `bus.beginPins(baud, rxPin, txPin)` instead.
+This is critical: if both RX and TX use the same pin or if RX is behind the resistor,
+the servo's response will be blocked by the ESP32 TX output driving the bus HIGH.
+
+Initialise with:
+```cpp
+bus.beginPins(1000000, 18, 17);  // beginPins(baud, rxPin, txPin)
+```
 
 ---
 
@@ -46,7 +52,7 @@ FeetechBus    bus(Serial2);
 FeetechST3020 st(bus, 11);   // servo ID 11
 
 void setup() {
-  bus.begin1Wire(1000000, 17);  // 1 MBaud, GPIO17
+  bus.beginPins(1000000, 18, 17);  // 1 MBaud, RX=GPIO18, TX=GPIO17
   st.init();
 
   st.moveTime(st.degToTicks(90), 500, 800);  // go to 90°, 500 ms, speed 800
@@ -63,8 +69,7 @@ void loop() {}
 
 | Method | Description |
 |--------|-------------|
-| `bus.begin1Wire(baud, pin)` | 1-Wire half-duplex: RX = TX = pin |
-| `bus.beginPins(baud, rx, tx)` | Separate RX / TX pins |
+| `bus.beginPins(baud, rx, tx)` | Half-duplex: TX → 1kΩ → bus, RX → bus direct |
 
 ### Servo setup
 
@@ -203,7 +208,7 @@ void loop() {
 
 ```cpp
 void setup() {
-  bus.begin1Wire(1000000, 17);
+  bus.beginPins(1000000, 18, 17);   // RX=GPIO18, TX=GPIO17
   st.init();
   st.setMode(ServoMode::VELOCITY);  // written to EEPROM — once at setup
 }
@@ -283,7 +288,8 @@ Serial.println(moving ? "yes" : "no");
 
 | Symptom | Likely cause |
 |---------|-------------|
-| `ping()` returns `false` | Wrong ID, wrong baud, no common GND, no power |
+| `ping()` returns `false` | Wrong ID, wrong baud, no common GND, no power, wrong wiring (see below) |
+| RX sees nothing | RX pin is behind the 1kΩ instead of directly on the bus node |
 | Checksum errors | Missing 1 kΩ resistor, cable too long, baud too high |
 | `setMode()` has no effect | EEPROM was locked — library now unlocks automatically |
 | Servo jitters at target position | `setAcceleration()` too low, increase or set 0 |
@@ -339,7 +345,7 @@ The differences are purely physical (form factor, torque, voltage range).
 
 - ESP32 (recommended)
 - ESP32-S3, ESP32-C3
-- AVR (use `beginPins()` — `begin1Wire()` is ESP32-only)
+- AVR (use `beginPins()` with hardware serial that supports pin remapping)
 
 ---
 
