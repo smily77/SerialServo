@@ -8,12 +8,13 @@
 class FeetechST3020 : public FeetechDevice {
 public:
   struct Profile {
-    uint16_t posMin = 0;
-    uint16_t posMax = 4095;
+    uint16_t posMin;
+    uint16_t posMax;
+    uint8_t  statusReturnLevel; // 0=none, 1=read only, 2=all (model dependent)
+    uint8_t  returnDelayUnits;  // stagger replies to avoid collisions
+    bool     torqueOnAfterInit;
 
-    uint8_t  statusReturnLevel = 1; // 0=none, 1=read only, 2=all (model dependent)
-    uint8_t  returnDelayUnits  = 0; // stagger replies to avoid collisions
-    bool     torqueOnAfterInit = true;
+    Profile() : posMin(0), posMax(4095), statusReturnLevel(1), returnDelayUnits(0), torqueOnAfterInit(true) {}
   };
 
   FeetechST3020(FeetechBus& bus, uint8_t id, RegMap map = RegMap());

@@ -74,6 +74,18 @@ void FeetechBus::flushInput() {
   while (_ser.available()) (void)_ser.read();
 }
 
+void FeetechBus::drainEcho(uint8_t count) {
+  // In 1-wire mode the ESP32 UART RX sees everything TX sends.
+  // The RX FIFO interrupt may fire slightly after _ser.flush() returns,
+  // so we must wait for exactly `count` bytes rather than using the
+  // non-blocking flushInput().
+  const uint32_t deadline = millis() + 10; // 10 ms hard cap
+  while (count > 0 && (int32_t)(millis() - deadline) < 0) {
+    if (_ser.available()) { (void)_ser.read(); count--; }
+    yield();
+  }
+}
+
 uint8_t FeetechBus::checksum(uint8_t id, uint8_t len, uint8_t instOrErr, const uint8_t* params, uint8_t paramLen) {
   uint16_t sum = id + len + instOrErr;
   for (uint8_t i = 0; i < paramLen; i++) sum += params[i];
@@ -100,7 +112,9 @@ bool FeetechBus::writePacket(uint8_t id, uint8_t inst, const uint8_t* params, ui
   _ser.write(chk);
 
   _ser.flush();
-  flushInput(); // 1-Wire: TX spiegelt sich auf RX → Echo-Bytes verwerfen
+  // 1-Wire: drain exactly the bytes we just sent (FF FF ID LEN INST [params] CHK)
+  if (_opt.dirPin < 0) drainEcho((uint8_t)(paramLen + 6));
+  else                 flushInput();
   setRxMode();
   return true;
 }
@@ -205,7 +219,9 @@ bool FeetechBus::triggerAction() {
   _ser.write(inst); _ser.write(chk);
 
   _ser.flush();
-  flushInput();
+  // ACTION is 6 bytes: FF FF FE LEN INST CHK
+  if (_opt.dirPin < 0) drainEcho(6);
+  else                 flushInput();
   setRxMode();
   return true;
 }
@@ -244,7 +260,12 @@ bool FeetechBus::syncWrite(uint8_t startAddr, uint8_t dataLen,
   _ser.write(chk);
 
   _ser.flush();
-  flushInput(); // kein Status-Response bei SYNC WRITE
+  // SYNC WRITE: FF FF FE LEN INST startAddr dataLen [id data...] CHK
+  // total = 2 + 1 + 1 + len + 1 = len + 5   where len already includes INST(1)+..+CHK(1)? No:
+  // len field = 4 + count*(1+dataLen), total wire bytes = len + 4 (FF FF ID LEN already counted)
+  // Simpler: total = 2(hdr) + 1(id) + 1(len) + len(payload incl inst & chk) = len + 4
+  if (_opt.dirPin < 0) drainEcho((uint8_t)(len + 4));
+  else                 flushInput();
   setRxMode();
   return true;
 }
