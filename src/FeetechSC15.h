@@ -4,12 +4,13 @@
 class FeetechSC15 : public FeetechDevice {
 public:
   struct Profile {
-    uint16_t posMin = 0;
-    uint16_t posMax = 1023; // informational
+    uint16_t posMin;
+    uint16_t posMax;       // informational
+    uint8_t  statusReturnLevel;
+    uint8_t  returnDelayUnits;
+    bool     torqueOnAfterInit;
 
-    uint8_t  statusReturnLevel = 1;
-    uint8_t  returnDelayUnits  = 3;
-    bool     torqueOnAfterInit = true;
+    Profile() : posMin(0), posMax(1023), statusReturnLevel(1), returnDelayUnits(3), torqueOnAfterInit(true) {}
   };
 
   FeetechSC15(FeetechBus& bus, uint8_t id, RegMap map = RegMap());

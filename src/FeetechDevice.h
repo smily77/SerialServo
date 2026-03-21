@@ -13,30 +13,52 @@ class FeetechDevice {
 public:
   struct RegMap {
     // EEPROM area (common SCS/STS)
-    uint8_t ADDR_ID                  = 0x05;
-    uint8_t ADDR_RETURN_DELAY        = 0x07;
-    uint8_t ADDR_STATUS_RETURN_LVL   = 0x08;
-    uint8_t ADDR_POSITION_CORRECTION = 0x1F; // signed position offset (EEPROM)
-    uint8_t ADDR_OPERATION_MODE      = 0x21; // ServoMode enum
+    uint8_t ADDR_ID;
+    uint8_t ADDR_RETURN_DELAY;
+    uint8_t ADDR_STATUS_RETURN_LVL;
+    uint8_t ADDR_POSITION_CORRECTION; // signed position offset (EEPROM)
+    uint8_t ADDR_OPERATION_MODE;      // ServoMode enum
 
     // RAM area
-    uint8_t ADDR_TORQUE_ENABLE       = 0x28;
-    uint8_t ADDR_TARGET_ACCELERATION = 0x29; // 0=no limit; unit depends on model
-    uint8_t ADDR_GOAL_POSITION_L     = 0x2A;
-    uint8_t ADDR_GOAL_TIME_L         = 0x2C;
-    uint8_t ADDR_GOAL_SPEED_L        = 0x2E; // speed limit (pos mode) or target (vel mode)
-    uint8_t ADDR_TORQUE_LIMIT_L      = 0x30;
-    uint8_t ADDR_WRITE_LOCK          = 0x37; // STS default; SCS uses 0x30 (overridden in SC15)
+    uint8_t ADDR_TORQUE_ENABLE;
+    uint8_t ADDR_TARGET_ACCELERATION; // 0=no limit; unit depends on model
+    uint8_t ADDR_GOAL_POSITION_L;
+    uint8_t ADDR_GOAL_TIME_L;
+    uint8_t ADDR_GOAL_SPEED_L;        // speed limit (pos mode) or target (vel mode)
+    uint8_t ADDR_TORQUE_LIMIT_L;
+    uint8_t ADDR_WRITE_LOCK;          // STS default 0x37; SCS uses 0x30 (overridden in SC15)
 
-    uint8_t ADDR_PRESENT_POSITION_L  = 0x38;
-    uint8_t ADDR_CURRENT_SPEED_L     = 0x3A; // signed: direction encoded via sign bit
-    uint8_t ADDR_CURRENT_TEMPERATURE = 0x3F; // degrees Celsius, 1 byte
-    uint8_t ADDR_MOVING_STATUS       = 0x42; // 0 = stopped, >0 = moving
-    uint8_t ADDR_CURRENT_CURRENT_L   = 0x45; // raw current; multiply by 0.0065 for Amps
+    uint8_t ADDR_PRESENT_POSITION_L;
+    uint8_t ADDR_CURRENT_SPEED_L;     // signed: direction encoded via sign bit
+    uint8_t ADDR_CURRENT_TEMPERATURE; // degrees Celsius, 1 byte
+    uint8_t ADDR_MOVING_STATUS;       // 0 = stopped, >0 = moving
+    uint8_t ADDR_CURRENT_CURRENT_L;   // raw current; multiply by 0.0065 for Amps
 
     // Protocol encoding flags (set per servo family in subclass constructors)
-    bool bigEndian = false; // true for SCS (SC15): 16-bit regs sent MSB first
-    bool signBit15 = true;  // false for SCS: sign is bit 10 (0x0400), not bit 15
+    bool bigEndian; // true for SCS (SC15): 16-bit regs sent MSB first
+    bool signBit15; // false for SCS: sign is bit 10 (0x0400), not bit 15
+
+    RegMap()
+      : ADDR_ID(0x05),
+        ADDR_RETURN_DELAY(0x07),
+        ADDR_STATUS_RETURN_LVL(0x08),
+        ADDR_POSITION_CORRECTION(0x1F),
+        ADDR_OPERATION_MODE(0x21),
+        ADDR_TORQUE_ENABLE(0x28),
+        ADDR_TARGET_ACCELERATION(0x29),
+        ADDR_GOAL_POSITION_L(0x2A),
+        ADDR_GOAL_TIME_L(0x2C),
+        ADDR_GOAL_SPEED_L(0x2E),
+        ADDR_TORQUE_LIMIT_L(0x30),
+        ADDR_WRITE_LOCK(0x37),
+        ADDR_PRESENT_POSITION_L(0x38),
+        ADDR_CURRENT_SPEED_L(0x3A),
+        ADDR_CURRENT_TEMPERATURE(0x3F),
+        ADDR_MOVING_STATUS(0x42),
+        ADDR_CURRENT_CURRENT_L(0x45),
+        bigEndian(false),
+        signBit15(true)
+    {}
   };
 
   FeetechDevice(FeetechBus& bus, uint8_t id, RegMap map = RegMap());
