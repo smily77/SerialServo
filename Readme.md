@@ -165,6 +165,7 @@ st.moveTime(st.degToTicks(0), 500, 500);
 |---------|---------------|
 | `BusScan` | Scan all IDs 1–253 at multiple baud rates — find connected servos and their IDs |
 | `BasicPositionControl` | Move through several angles, wait for completion via `isMoving()`, read position and speed |
+| `SpeedMove` | Snap to position at full hardware speed — `time=0, speed=0, acc=0` explained |
 | `ContinuousRotation` | Velocity mode — forward / stop / reverse / stop with live speed readback |
 | `StatusMonitor` | Live readout of position, speed, temperature, and current |
 | `DualServo_SameUART` | ST3020 + SC15 on one bus — init, move, sequential position read |
@@ -242,6 +243,25 @@ sc.moveTimeAsync(512,                900, 600);
 // Fire: both start at exactly the same moment
 st.triggerAction();
 ```
+
+---
+
+### Example: SpeedMove
+
+Move to a position as fast as the hardware allows — no time constraint, no speed cap, no ramp.
+
+```cpp
+// setup() — once:
+st.setAcceleration(0);  // 0 = no ramp; full torque from standstill
+
+// Snap to any position at maximum hardware speed:
+st.moveTime(st.degToTicks(180), 0, 0);
+//                              ^  ^
+//                        time=0  speed=0 → no limits
+```
+
+> **WARNING:** With `acc=0` and `speed=0` the servo moves hard and fast.
+> Make sure the mechanical end-stops and the load can handle the impact.
 
 ---
 
