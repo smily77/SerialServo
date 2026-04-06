@@ -17,7 +17,7 @@ public:
 
   bool init(const Profile& p = Profile());
 
-  // Convert degrees (0–300°) to ticks (0–1023).
-  // Values outside the range are clamped.
+  // Convert degrees (0–180°) to ticks (0–1023).
+  // SC15 servo mode range is 180°. Values outside the range are clamped.
   uint16_t degToTicks(float deg) const;
 };

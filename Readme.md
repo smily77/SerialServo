@@ -2,7 +2,7 @@
 
 Arduino library for Feetech bus servos (SCS/STS protocol) on ESP32 and compatible boards.
 
-Supports **ST3020 / ST3215** (STS, 360°, continuous rotation) and **SC15** (SCS, 300°, continuous rotation) on a shared half-duplex UART bus.
+Supports **ST3020 / ST3215** (STS, 360°, continuous rotation) and **SC15** (SCS, 180°, continuous rotation) on a shared half-duplex UART bus.
 
 ---
 
@@ -89,7 +89,7 @@ void loop() {}
 |-------|-------|----------|---------|-------|-------------|--------------|
 | `FeetechST3020` | — | STS (little-endian, bit-15 sign) | 4096 ticks/rev | 0–360° | ±32767 | `degToTicks(0–360)` |
 | `FeetechST3215` | = `FeetechST3020` | STS (identical register map) | 4096 ticks/rev | 0–360° | ±32767 | `degToTicks(0–360)` |
-| `FeetechSC15` | — | SCS (big-endian, bit-10 sign) | 1024 ticks/300° | 0–300° | ±1023 | `degToTicks(0–300)` |
+| `FeetechSC15` | — | SCS (big-endian, bit-10 sign) | 1024 ticks/180° | 0–180° | ±1023 | `degToTicks(0–180)` |
 
 ST3020 and ST3215 share the same register map, protocol, and 12-bit encoder.
 The differences are purely physical (form factor, torque, voltage range).
@@ -125,7 +125,7 @@ The differences are purely physical (form factor, torque, voltage range).
 | Method | Class | Description |
 |--------|-------|-------------|
 | `degToTicks(deg)` | `FeetechST3020` | 0–360° → 0–4095 ticks |
-| `degToTicks(deg)` | `FeetechSC15` | 0–300° → 0–1023 ticks; values outside range are clamped |
+| `degToTicks(deg)` | `FeetechSC15` | 0–180° → 0–1023 ticks; values outside range are clamped |
 
 ### Status reads
 
@@ -258,8 +258,8 @@ void loop() {
 
 ### Example: SC15_PositionControl
 
-Moves an SC15 through 0° → 150° → 300° → 150° → 0°, blocking until each move finishes.
-SC15 range is 0–300°; `degToTicks()` clamps values outside this range.
+Moves an SC15 through 0° → 90° → 180° → 90° → 0°, blocking until each move finishes.
+SC15 range is 0–180°; `degToTicks()` clamps values outside this range.
 
 ```cpp
 FeetechSC15 sc(bus, 1);
@@ -280,8 +280,8 @@ void moveTo(float deg, uint16_t timeMs, uint16_t speed) {
 
 void loop() {
   moveTo(  0, 900, 600);
-  moveTo(150, 800, 700);
-  moveTo(300, 900, 600);
+  moveTo( 90, 700, 700);
+  moveTo(180, 900, 600);
 }
 ```
 
@@ -413,7 +413,7 @@ Serial.println(moving ? "yes" : "no");
 | Servo jitters at target position | `setAcceleration()` too low, increase or set 0 |
 | Two servos reply to one read | Duplicate IDs on bus |
 | `setTargetVelocity()` ignored | Servo still in POSITION mode — call `setMode(VELOCITY)` first |
-| SC15 stops before target angle | Angle > 300° — SC15 physical range is 0–300°; `degToTicks()` clamps at 300° |
+| SC15 stops before target angle | Angle > 180° — SC15 servo mode range is 0–180°; `degToTicks()` clamps at 180° |
 
 ---
 
@@ -424,7 +424,7 @@ FeetechBus            protocol framing, checksum, UART I/O
   └── FeetechDevice   register map, endian + sign encoding, full API
         ├── FeetechST3020   STS family, 4096 ticks/rev, degToTicks(0–360°)
         │     FeetechST3215  (type alias — identical register map)
-        └── FeetechSC15     SCS family, 1024 ticks/300°, degToTicks(0–300°)
+        └── FeetechSC15     SCS family, 1024 ticks/180°, degToTicks(0–180°)
 ```
 
 Bus knows only the wire protocol. Device knows registers. Subclass knows the model.

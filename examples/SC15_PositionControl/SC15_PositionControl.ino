@@ -5,7 +5,7 @@
 //
 // SC15 quick facts:
 //   Protocol : SCS (big-endian, bit-10 sign)
-//   Range    : 0 – 300°   →   0 – 1023 ticks  (≈ 3.41 ticks/°)
+//   Range    : 0 – 180°   →   0 – 1023 ticks  (≈ 5.68 ticks/°)
 //   Speed    : ±1023  (positive = forward, negative = reverse)
 //
 // Wiring (ESP32):
@@ -86,9 +86,9 @@ void setup() {
 
 void loop() {
   moveTo(  0.0f, 900, 600);
-  moveTo(150.0f, 800, 700);
-  moveTo(300.0f, 900, 600);
-  moveTo(150.0f, 700, 800);
+  moveTo( 90.0f, 700, 700);
+  moveTo(180.0f, 900, 600);
+  moveTo( 90.0f, 700, 700);
   moveTo(  0.0f, 900, 600);
   delay(1000);
 }
