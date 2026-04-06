@@ -68,24 +68,24 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("\n-> ST3020 to 180 deg, SC15 to center (512)");
+  Serial.println("\n-> ST3020 to 180 deg, SC15 to 150 deg");
   syncedMove(
     st.degToTicks(180), 900, 800,
-    512,                900, 600
+    sc.degToTicks(150), 900, 600
   );
   delay(1400);
 
-  Serial.println("\n-> ST3020 to 90 deg, SC15 to quarter (256)");
+  Serial.println("\n-> ST3020 to 90 deg, SC15 to 75 deg");
   syncedMove(
-    st.degToTicks(90), 700, 900,
-    256,               700, 700
+    st.degToTicks(90),  700, 900,
+    sc.degToTicks(75),  700, 700
   );
   delay(1100);
 
-  Serial.println("\n-> ST3020 to 0 deg, SC15 to 0");
+  Serial.println("\n-> ST3020 to 0 deg, SC15 to 0 deg");
   syncedMove(
-    st.degToTicks(0), 900, 800,
-    0,                900, 600
+    st.degToTicks(0),   900, 800,
+    sc.degToTicks(0),   900, 600
   );
   delay(1400);
 }

@@ -101,7 +101,13 @@ bool FeetechDevice::setStatusReturnLevel(uint8_t level) {
 }
 
 bool FeetechDevice::setMode(ServoMode mode) {
-  // OPERATION_MODE (0x21) liegt im EEPROM-Bereich → EEPROM muss entsperrt werden
+  // Read current mode first — EEPROM write cycles are limited to ~100k.
+  // Skip the write entirely if the servo is already in the requested mode.
+  uint8_t current = 0xFF;
+  if (read8(_reg.ADDR_OPERATION_MODE, current) &&
+      current == static_cast<uint8_t>(mode)) {
+    return true;  // already correct, no EEPROM write needed
+  }
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(5);
   bool ok = write8(_reg.ADDR_OPERATION_MODE, static_cast<uint8_t>(mode));

@@ -16,4 +16,8 @@ public:
   FeetechSC15(FeetechBus& bus, uint8_t id, RegMap map = RegMap());
 
   bool init(const Profile& p = Profile());
+
+  // Convert degrees (0–300°) to ticks (0–1023).
+  // Values outside the range are clamped.
+  uint16_t degToTicks(float deg) const;
 };
