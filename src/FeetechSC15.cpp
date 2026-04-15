@@ -5,8 +5,11 @@ FeetechSC15::FeetechSC15(FeetechBus& bus, uint8_t id, RegMap map)
   // SCS protocol (SC15): 16-bit registers are big-endian, sign is bit 10 (not bit 15)
   _reg.bigEndian  = true;
   _reg.signBit15  = false;
-  // On SCS, the EEPROM write-lock lives at the TORQUE_LIMIT address (0x30)
+  // On SCS, the EEPROM write-lock lives at 0x30 (not 0x37 as in STS)
   _reg.ADDR_WRITE_LOCK = 0x30;
+  // The SCS register map has no position-correction / calibration-offset register.
+  // Sentinel 0xFF tells setPositionOffset() to return false immediately.
+  _reg.ADDR_POSITION_CORRECTION = 0xFF;
 }
 
 uint16_t FeetechSC15::degToTicks(float deg) const {

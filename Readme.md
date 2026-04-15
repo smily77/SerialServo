@@ -147,14 +147,47 @@ The differences are purely physical (form factor, torque, voltage range).
 
 ### EEPROM settings (persistent across power cycles)
 
-> These methods automatically unlock and relock EEPROM. Call them **once at setup**, not in `loop()`. EEPROM is rated for ~100 000 write cycles.
-> `setMode()` reads the current mode first and skips the write if the servo is already in the requested mode.
+> These methods automatically unlock and relock EEPROM. Call them **once at setup**, not in `loop()`.
+> EEPROM is rated for ~100 000 write cycles.
+> `setMode()` reads the current mode before writing and skips the EEPROM write if the mode is already correct.
 
-| Method | Description |
-|--------|-------------|
-| `setMode(ServoMode)` | Operating mode: POSITION, VELOCITY, or STEP |
-| `setId(newId)` | Change servo ID |
-| `setPositionOffset(offset)` | Signed calibration offset |
+| Method | Families | Description |
+|--------|----------|-------------|
+| `setMode(ServoMode)` | ST + SC | Operating mode: POSITION, VELOCITY, or STEP |
+| `setId(newId)` | ST + SC | Change servo ID (1–253) |
+| `setAngleLimits(minTicks, maxTicks)` | ST + SC | Clamp the allowed position range in EEPROM |
+| `setPositionOffset(offset)` | **ST only** | Signed calibration offset — not available on SC15 (returns `false`) |
+
+#### `setAngleLimits` — position clamping
+
+The servo will refuse to move outside the stored min/max range. Units are raw ticks.
+Use `degToTicks()` to convert:
+
+```cpp
+// ST3020: restrict to 45°–270° (0–360° = 0–4095 ticks)
+st.setAngleLimits(st.degToTicks(45), st.degToTicks(270));
+
+// SC15: restrict to 30°–150° (0–180° = 0–1023 ticks)
+sc.setAngleLimits(sc.degToTicks(30), sc.degToTicks(150));
+```
+
+Restore full range:
+```cpp
+st.setAngleLimits(0, 4095);   // ST3020
+sc.setAngleLimits(0, 1023);   // SC15
+```
+
+#### `setPositionOffset` — calibration offset (STS / ST3020 only)
+
+The SCS protocol (SC15) has **no calibration-offset register**. Calling `setPositionOffset()` on an SC15 returns `false` immediately without touching the bus.
+
+The STS (ST3020 / ST3215) offset is a signed 16-bit value stored in EEPROM at register 0x1F.
+It shifts the zero-point of the encoder without changing the physical range:
+
+```cpp
+st.setPositionOffset(100);    // shift zero-point by +100 ticks
+st.setPositionOffset(0);      // reset to factory zero
+```
 
 ---
 
@@ -414,6 +447,8 @@ Serial.println(moving ? "yes" : "no");
 | Two servos reply to one read | Duplicate IDs on bus |
 | `setTargetVelocity()` ignored | Servo still in POSITION mode — call `setMode(VELOCITY)` first |
 | SC15 stops before target angle | Angle > 180° — SC15 servo mode range is 0–180°; `degToTicks()` clamps at 180° |
+| SC15 stops before target angle | `setAngleLimits()` may have been called with a reduced range — check EEPROM limits |
+| `setPositionOffset()` returns `false` on SC15 | Expected — the SCS register map has no offset register; use `setAngleLimits()` instead |
 
 ---
 

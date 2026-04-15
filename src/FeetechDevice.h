@@ -16,8 +16,10 @@ public:
     uint8_t ADDR_ID;
     uint8_t ADDR_RETURN_DELAY;
     uint8_t ADDR_STATUS_RETURN_LVL;
-    uint8_t ADDR_POSITION_CORRECTION; // signed position offset (EEPROM)
-    uint8_t ADDR_OPERATION_MODE;      // ServoMode enum
+    uint8_t ADDR_MIN_ANGLE_LIMIT;       // lower position limit stored in EEPROM
+    uint8_t ADDR_MAX_ANGLE_LIMIT;       // upper position limit stored in EEPROM
+    uint8_t ADDR_POSITION_CORRECTION;   // signed calibration offset (STS only; 0xFF = not supported)
+    uint8_t ADDR_OPERATION_MODE;        // ServoMode enum
 
     // RAM area
     uint8_t ADDR_TORQUE_ENABLE;
@@ -42,6 +44,8 @@ public:
       : ADDR_ID(0x05),
         ADDR_RETURN_DELAY(0x07),
         ADDR_STATUS_RETURN_LVL(0x08),
+        ADDR_MIN_ANGLE_LIMIT(0x09),
+        ADDR_MAX_ANGLE_LIMIT(0x0B),
         ADDR_POSITION_CORRECTION(0x1F),
         ADDR_OPERATION_MODE(0x21),
         ADDR_TORQUE_ENABLE(0x28),
@@ -87,8 +91,14 @@ public:
   bool triggerAction();
 
   // --- EEPROM-protected settings (unlocks/relocks EEPROM automatically) ---
-  bool setId(uint8_t newId);           // change servo ID
-  bool setPositionOffset(int16_t offset); // signed calibration offset
+  bool setId(uint8_t newId);
+  // Clamp position range in EEPROM (both families).
+  // Units are raw ticks: 0–4095 for ST3020, 0–1023 for SC15.
+  // Use degToTicks() to convert: sc.setAngleLimits(sc.degToTicks(30), sc.degToTicks(150))
+  bool setAngleLimits(uint16_t minPos, uint16_t maxPos);
+  // Signed calibration offset — STS (ST3020/ST3215) only.
+  // Returns false on SC15 because the SCS register map has no offset register.
+  bool setPositionOffset(int16_t offset);
 
   // --- Status reads ---
   bool readPresentPosition(uint16_t& pos);

@@ -178,7 +178,21 @@ bool FeetechDevice::setId(uint8_t newId) {
   return true;
 }
 
+bool FeetechDevice::setAngleLimits(uint16_t minPos, uint16_t maxPos) {
+  if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
+  delay(5);
+  bool ok = write16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos);
+  if (ok) ok = write16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
+  delay(5);
+  (void)write8(_reg.ADDR_WRITE_LOCK, 1);
+  return ok;
+}
+
 bool FeetechDevice::setPositionOffset(int16_t offset) {
+  // ADDR_POSITION_CORRECTION == 0xFF means the register does not exist for this
+  // servo family (SCS / SC15). The SCS register map has no calibration offset.
+  if (_reg.ADDR_POSITION_CORRECTION == 0xFF) return false;
+
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(5);
   bool ok = writeSigned16(_reg.ADDR_POSITION_CORRECTION, offset);
