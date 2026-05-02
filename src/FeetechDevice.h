@@ -106,6 +106,7 @@ public:
   bool readCurrentTemperature(uint8_t& degC);
   bool readCurrentCurrent(float& amps);     // converted: count * 0.0065 A
   bool isMoving(bool& moving);
+  bool readAngleLimits(uint16_t& minPos, uint16_t& maxPos); // read EEPROM limits
 
   // --- Low-level register access ---
   bool write8(uint8_t addr, uint8_t v);

@@ -209,7 +209,7 @@ Both ST3020 and SC15 support all three modes. The only difference is the speed r
 // ST3020 — 360° range, 4096 ticks
 st.moveTime(st.degToTicks(90), 300, 800);   // 90°, 300 ms, speed 800
 
-// SC15 — 300° range, 1024 ticks
+// SC15 — 180° range, 1024 ticks
 sc.moveTime(sc.degToTicks(90), 300, 600);   // 90°, 300 ms, speed 600
 ```
 
@@ -247,8 +247,10 @@ st.moveTime(st.degToTicks(0), 500, 500);
 | `BasicPositionControl` | ST3020 | Move through several angles, wait for completion via `isMoving()`, read position and speed |
 | `SpeedMove` | ST3020 | Snap to position at full hardware speed — `time=0, speed=0, acc=0` explained |
 | `ContinuousRotation` | ST3020 | Velocity mode — forward / stop / reverse / stop with live speed readback |
+| `ST3020_CalibrateLimits` | ST3020 | Interactive: set current position as min or max limit; stored in EEPROM via `setAngleLimits()` |
 | `SC15_PositionControl` | SC15 | Position control using `degToTicks()`, wait for completion, read back position |
 | `SC15_ContinuousRotation` | SC15 | Velocity mode for SC15 — same API, speed range ±1023 |
+| `SC15_Calibrate` | SC15 | Interactive: store current position as home reference; move ±deg from home (software offset) |
 | `StatusMonitor` | ST3020 | Live readout of position, speed, temperature, and current |
 | `DualServo_SameUART` | ST3020 + SC15 | Both servo types on one bus — init, move, sequential position read |
 | `SyncedMove` | ST3020 + SC15 | Two servos start simultaneously with `moveTimeAsync` + `triggerAction` |
@@ -357,6 +359,47 @@ void loop() {
   sc.setTargetVelocity(   0); delay(1000);  // stop
 }
 ```
+
+---
+
+### Example: ST3020_CalibrateLimits
+
+Interactive Serial utility — records physical end-stop positions as EEPROM angle limits.
+Connect via Serial Monitor at 115200 baud.
+
+```
+Workflow:
+  1. Move servo to the desired minimum position (manually or by code).
+  2. Send 'l' → current position saved as lower limit in EEPROM.
+  3. Move servo to the desired maximum position.
+  4. Send 'h' → current position saved as upper limit in EEPROM.
+  5. Send 't' to verify both limits.
+  6. Send 'r' to restore full range 0–4095 if needed.
+```
+
+At startup the sketch reads the current EEPROM limits via `readAngleLimits()` so it
+remains consistent across power cycles.
+
+---
+
+### Example: SC15_Calibrate
+
+Interactive Serial utility — records the current position as a software home reference.
+
+The SC15 uses the SCS protocol which has **no hardware position-offset register**
+(unlike ST3020 which has `setPositionOffset()`). Calibration is therefore
+done in software: `calibrateCenter()` stores the current tick as `homeTicks`.
+All subsequent `moveFromHome(deg)` calls move ±deg relative to that reference.
+
+```
+  c  →  Store current position as home / center reference (RAM only, resets on power-off)
+  t  →  Test sweep: −60° → home → +60° relative to home
+  r  →  Reset home to tick 512 (factory center = 90°)
+```
+
+> **Note:** SC15 tick range is 0–1023 (center = tick 512 = 90°).
+> If you need a persistent offset that survives power-off, use the ST3020
+> which supports `st.setPositionOffset()` written to EEPROM.
 
 ---
 

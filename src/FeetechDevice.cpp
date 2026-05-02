@@ -230,3 +230,8 @@ bool FeetechDevice::isMoving(bool& moving) {
   moving = (v != 0);
   return true;
 }
+
+bool FeetechDevice::readAngleLimits(uint16_t& minPos, uint16_t& maxPos) {
+  if (!read16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos)) return false;
+  return read16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
+}
