@@ -14,6 +14,11 @@
 // The position register is 0–4095 (exactly one revolution for ST3020).
 //   target = (current + STEP_TICKS) % 4096
 //
+// IMPORTANT — angle limits must be cleared:
+//   Any angle limits in EEPROM (min > 0 or max < 4095) will stop the servo
+//   when the target crosses the limit boundary.  setup() calls
+//   setAngleLimits(0, 4095) to guarantee the full range is open.
+//
 // Wiring (ESP32):
 //   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
 //   GPIO18 RX ----------+
@@ -53,6 +58,14 @@ void setup() {
   Serial.println("ST3020 found.");
 
   st.init();
+
+  // Clear angle limits so the servo can pass through 0/4095 freely.
+  // Written to EEPROM once; setAngleLimits() skips the write if already correct.
+  Serial.println("Clearing angle limits (0–4095)...");
+  if (!st.setAngleLimits(0, 4095)) {
+    Serial.println("ERROR: setAngleLimits failed");
+    while (true) delay(1000);
+  }
 
   Serial.println("Setting POSITION mode...");
   if (!st.setMode(ServoMode::POSITION)) {
