@@ -207,6 +207,25 @@ bool FeetechDevice::setPositionOffset(int16_t offset) {
   return ok;
 }
 
+bool FeetechDevice::setDeadBand(uint8_t cwTicks, uint8_t ccwTicks) {
+  if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
+  delay(20);
+  bool ok = write8(_reg.ADDR_CW_DEAD_BAND, cwTicks);
+  if (ok) ok = write8(_reg.ADDR_CCW_DEAD_BAND, ccwTicks);
+  delay(20);
+  (void)write8(_reg.ADDR_WRITE_LOCK, 1);
+  if (!ok) return false;
+  delay(5);
+  uint8_t rCw = 0, rCcw = 0;
+  if (!readDeadBand(rCw, rCcw)) return false;
+  return (rCw == cwTicks && rCcw == ccwTicks);
+}
+
+bool FeetechDevice::readDeadBand(uint8_t& cwTicks, uint8_t& ccwTicks) {
+  if (!read8(_reg.ADDR_CW_DEAD_BAND, cwTicks)) return false;
+  return read8(_reg.ADDR_CCW_DEAD_BAND, ccwTicks);
+}
+
 // ---------------------------------------------------------------------------
 // Status reads
 // ---------------------------------------------------------------------------
