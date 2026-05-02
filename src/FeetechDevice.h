@@ -18,6 +18,8 @@ public:
     uint8_t ADDR_STATUS_RETURN_LVL;
     uint8_t ADDR_MIN_ANGLE_LIMIT;       // lower position limit stored in EEPROM
     uint8_t ADDR_MAX_ANGLE_LIMIT;       // upper position limit stored in EEPROM
+    uint8_t ADDR_CW_DEAD_BAND;          // clockwise dead band in ticks (EEPROM, 1 byte)
+    uint8_t ADDR_CCW_DEAD_BAND;         // counter-clockwise dead band in ticks (EEPROM, 1 byte)
     uint8_t ADDR_POSITION_CORRECTION;   // signed calibration offset (STS only; 0xFF = not supported)
     uint8_t ADDR_OPERATION_MODE;        // ServoMode enum
 
@@ -46,6 +48,8 @@ public:
         ADDR_STATUS_RETURN_LVL(0x08),
         ADDR_MIN_ANGLE_LIMIT(0x09),
         ADDR_MAX_ANGLE_LIMIT(0x0B),
+        ADDR_CW_DEAD_BAND(0x1A),
+        ADDR_CCW_DEAD_BAND(0x1B),
         ADDR_POSITION_CORRECTION(0x1F),
         ADDR_OPERATION_MODE(0x21),
         ADDR_TORQUE_ENABLE(0x28),
@@ -99,6 +103,11 @@ public:
   // Signed calibration offset — STS (ST3020/ST3215) only.
   // Returns false on SC15 because the SCS register map has no offset register.
   bool setPositionOffset(int16_t offset);
+  // Dead band: servo ignores position error smaller than this threshold.
+  // Both CW and CCW values are stored in EEPROM and verified by read-back.
+  // Pass the same value for both to set a symmetric dead zone.
+  bool setDeadBand(uint8_t cwTicks, uint8_t ccwTicks);
+  bool readDeadBand(uint8_t& cwTicks, uint8_t& ccwTicks);
 
   // --- Status reads ---
   bool readPresentPosition(uint16_t& pos);
@@ -106,7 +115,7 @@ public:
   bool readCurrentTemperature(uint8_t& degC);
   bool readCurrentCurrent(float& amps);     // converted: count * 0.0065 A
   bool isMoving(bool& moving);
-  bool readAngleLimits(uint16_t& minPos, uint16_t& maxPos); // read EEPROM limits
+  bool readAngleLimits(uint16_t& minPos, uint16_t& maxPos);
 
   // --- Low-level register access ---
   bool write8(uint8_t addr, uint8_t v);
