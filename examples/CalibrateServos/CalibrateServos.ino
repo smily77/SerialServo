@@ -172,7 +172,7 @@ void moveST(int32_t delta) {
     return;
   }
   uint16_t newPos = (uint16_t)constrain((int32_t)pos + delta, 0, 4095);
-  st.moveTime(newPos, 500, 0);
+  st.moveTime(newPos, 800, 300);
   Serial.print("  ST3020: "); Serial.print(pos);
   Serial.print(" → "); Serial.print(newPos);
   Serial.print(" ("); Serial.print(newPos * 360.0f / 4095.0f, 1); Serial.println("°)");
@@ -185,7 +185,7 @@ void moveSC(int32_t delta) {
     return;
   }
   uint16_t newPos = (uint16_t)constrain((int32_t)pos + delta, (int32_t)scMin, (int32_t)scMax);
-  sc.moveTime(newPos, 500, 0);
+  sc.moveTime(newPos, 800, 200);
   Serial.print("  SC15:   "); Serial.print(pos);
   Serial.print(" → "); Serial.print(newPos);
   Serial.print(" ("); Serial.print(newPos * 180.0f / 1023.0f, 1); Serial.println("°)");
@@ -391,18 +391,21 @@ void loop() {
     Serial.print("  SC-limits=["); Serial.print(scMin); Serial.print(","); Serial.print(scMax); Serial.println("]");
   }
 
-  // Line-buffered command input — processes commands when a newline arrives.
+  // Line-buffered command input.
+  // Both '\n' and '\r' act as terminators so the sketch works regardless of
+  // whether the Serial Monitor is set to "Newline", "Carriage return", or
+  // "Both NL & CR".  An empty line (linePos==0) is silently ignored, which
+  // prevents double-firing for "\r\n".
   static char    lineBuf[32];
   static uint8_t linePos = 0;
 
   while (Serial.available()) {
     char c = (char)Serial.read();
-    if (c == '\r') continue;
-    if (c == '\n' || linePos >= (uint8_t)(sizeof(lineBuf) - 1)) {
+    if (c == '\r' || c == '\n') {
       lineBuf[linePos] = '\0';
       if (linePos > 0) processCommand(lineBuf);
       linePos = 0;
-    } else {
+    } else if (linePos < (uint8_t)(sizeof(lineBuf) - 1)) {
       lineBuf[linePos++] = c;
     }
   }
