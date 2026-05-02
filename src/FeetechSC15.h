@@ -16,4 +16,8 @@ public:
   FeetechSC15(FeetechBus& bus, uint8_t id, RegMap map = RegMap());
 
   bool init(const Profile& p = Profile());
+
+  // Convert degrees (0–180°) to ticks (0–1023).
+  // SC15 servo mode range is 180°. Values outside the range are clamped.
+  uint16_t degToTicks(float deg) const;
 };

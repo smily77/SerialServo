@@ -101,7 +101,13 @@ bool FeetechDevice::setStatusReturnLevel(uint8_t level) {
 }
 
 bool FeetechDevice::setMode(ServoMode mode) {
-  // OPERATION_MODE (0x21) liegt im EEPROM-Bereich → EEPROM muss entsperrt werden
+  // Read current mode first — EEPROM write cycles are limited to ~100k.
+  // Skip the write entirely if the servo is already in the requested mode.
+  uint8_t current = 0xFF;
+  if (read8(_reg.ADDR_OPERATION_MODE, current) &&
+      current == static_cast<uint8_t>(mode)) {
+    return true;  // already correct, no EEPROM write needed
+  }
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(5);
   bool ok = write8(_reg.ADDR_OPERATION_MODE, static_cast<uint8_t>(mode));
@@ -172,7 +178,21 @@ bool FeetechDevice::setId(uint8_t newId) {
   return true;
 }
 
+bool FeetechDevice::setAngleLimits(uint16_t minPos, uint16_t maxPos) {
+  if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
+  delay(5);
+  bool ok = write16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos);
+  if (ok) ok = write16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
+  delay(5);
+  (void)write8(_reg.ADDR_WRITE_LOCK, 1);
+  return ok;
+}
+
 bool FeetechDevice::setPositionOffset(int16_t offset) {
+  // ADDR_POSITION_CORRECTION == 0xFF means the register does not exist for this
+  // servo family (SCS / SC15). The SCS register map has no calibration offset.
+  if (_reg.ADDR_POSITION_CORRECTION == 0xFF) return false;
+
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(5);
   bool ok = writeSigned16(_reg.ADDR_POSITION_CORRECTION, offset);
@@ -209,4 +229,9 @@ bool FeetechDevice::isMoving(bool& moving) {
   if (!read8(_reg.ADDR_MOVING_STATUS, v)) return false;
   moving = (v != 0);
   return true;
+}
+
+bool FeetechDevice::readAngleLimits(uint16_t& minPos, uint16_t& maxPos) {
+  if (!read16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos)) return false;
+  return read16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
 }
