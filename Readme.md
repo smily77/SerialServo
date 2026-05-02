@@ -247,10 +247,9 @@ st.moveTime(st.degToTicks(0), 500, 500);
 | `BasicPositionControl` | ST3020 | Move through several angles, wait for completion via `isMoving()`, read position and speed |
 | `SpeedMove` | ST3020 | Snap to position at full hardware speed — `time=0, speed=0, acc=0` explained |
 | `ContinuousRotation` | ST3020 | Velocity mode — forward / stop / reverse / stop with live speed readback |
-| `ST3020_CalibrateLimits` | ST3020 | Interactive: set current position as min or max limit; stored in EEPROM via `setAngleLimits()` |
+| `CalibrateServos` | ST3020 + SC15 | Interactive: ST3020 current pos → tick 2048 (center); SC15 current pos → min or max limit |
 | `SC15_PositionControl` | SC15 | Position control using `degToTicks()`, wait for completion, read back position |
 | `SC15_ContinuousRotation` | SC15 | Velocity mode for SC15 — same API, speed range ±1023 |
-| `SC15_Calibrate` | SC15 | Interactive: store current position as home reference; move ±deg from home (software offset) |
 | `StatusMonitor` | ST3020 | Live readout of position, speed, temperature, and current |
 | `DualServo_SameUART` | ST3020 + SC15 | Both servo types on one bus — init, move, sequential position read |
 | `SyncedMove` | ST3020 + SC15 | Two servos start simultaneously with `moveTimeAsync` + `triggerAction` |
@@ -362,44 +361,37 @@ void loop() {
 
 ---
 
-### Example: ST3020_CalibrateLimits
+### Example: CalibrateServos (ST3020 + SC15)
 
-Interactive Serial utility — records physical end-stop positions as EEPROM angle limits.
-Connect via Serial Monitor at 115200 baud.
+Combined calibration utility — three functions, one sketch, both servos on the same bus.
+All writes go to EEPROM and survive power-off.
 
-```
-Workflow:
-  1. Move servo to the desired minimum position (manually or by code).
-  2. Send 'l' → current position saved as lower limit in EEPROM.
-  3. Move servo to the desired maximum position.
-  4. Send 'h' → current position saved as upper limit in EEPROM.
-  5. Send 't' to verify both limits.
-  6. Send 'r' to restore full range 0–4095 if needed.
-```
-
-At startup the sketch reads the current EEPROM limits via `readAngleLimits()` so it
-remains consistent across power cycles.
-
----
-
-### Example: SC15_Calibrate
-
-Interactive Serial utility — records the current position as a software home reference.
-
-The SC15 uses the SCS protocol which has **no hardware position-offset register**
-(unlike ST3020 which has `setPositionOffset()`). Calibration is therefore
-done in software: `calibrateCenter()` stores the current tick as `homeTicks`.
-All subsequent `moveFromHome(deg)` calls move ±deg relative to that reference.
+| Command | Servo | Function |
+|---------|-------|----------|
+| `c` | ST3020 | Reads current position, writes `setPositionOffset()` so it reports as tick 2048 (180°, center) |
+| `l` | SC15 | Reads current position, saves it as the lower angle limit via `setAngleLimits()` |
+| `h` | SC15 | Reads current position, saves it as the upper angle limit via `setAngleLimits()` |
+| `t` | both | Test: ST3020 → 2048; SC15 → min limit → max limit |
+| `r` | both | Reset: ST3020 offset = 0; SC15 limits = 0–1023 (full range) |
 
 ```
-  c  →  Store current position as home / center reference (RAM only, resets on power-off)
-  t  →  Test sweep: −60° → home → +60° relative to home
-  r  →  Reset home to tick 512 (factory center = 90°)
+ST3020 workflow:
+  1. Move the servo to the desired neutral / center position.
+  2. Send 'c' → encoder zero-point shifted so this position now reports as 2048 (180°).
+
+SC15 workflow:
+  1. Move the servo to the desired minimum stop position.
+  2. Send 'l' → stored as lower limit in EEPROM.
+  3. Move the servo to the desired maximum stop position.
+  4. Send 'h' → stored as upper limit in EEPROM.
 ```
 
-> **Note:** SC15 tick range is 0–1023 (center = tick 512 = 90°).
-> If you need a persistent offset that survives power-off, use the ST3020
-> which supports `st.setPositionOffset()` written to EEPROM.
+> **Why different methods for the two families?**
+> The STS protocol (ST3020) has a hardware position-offset register at 0x1F that shifts
+> the reported encoder value — `setPositionOffset(2048 − currentTick)`.
+> The SCS protocol (SC15) has **no offset register**, so center calibration is not possible.
+> Instead, the SC15 supports angle limits (registers 0x09/0x0B) that mechanically clamp
+> the allowed range — `setAngleLimits(min, max)`.
 
 ---
 
