@@ -180,12 +180,18 @@ bool FeetechDevice::setId(uint8_t newId) {
 
 bool FeetechDevice::setAngleLimits(uint16_t minPos, uint16_t maxPos) {
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
-  delay(5);
+  delay(20);
   bool ok = write16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos);
   if (ok) ok = write16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
-  delay(5);
+  delay(20);
   (void)write8(_reg.ADDR_WRITE_LOCK, 1);
-  return ok;
+  if (!ok) return false;
+  // Read back to confirm EEPROM accepted the write (writePacket never returns false,
+  // so without this check failures would be invisible).
+  delay(5);
+  uint16_t rMin = 0, rMax = 0;
+  if (!readAngleLimits(rMin, rMax)) return false;
+  return (rMin == minPos && rMax == maxPos);
 }
 
 bool FeetechDevice::setPositionOffset(int16_t offset) {
