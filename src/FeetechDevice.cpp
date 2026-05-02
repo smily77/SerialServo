@@ -181,13 +181,25 @@ bool FeetechDevice::setId(uint8_t newId) {
 bool FeetechDevice::setAngleLimits(uint16_t minPos, uint16_t maxPos) {
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(20);
-  bool ok = write16(_reg.ADDR_MIN_ANGLE_LIMIT, minPos);
-  if (ok) ok = write16(_reg.ADDR_MAX_ANGLE_LIMIT, maxPos);
+  // Write all 4 bytes (min_L, min_H, max_L, max_H) in one packet so the servo
+  // never receives a second EEPROM write while the first cell is still being
+  // programmed (EEPROM write cycle ~1-10 ms; inter-frame gap is only 200 µs).
+  uint8_t buf[4];
+  if (_reg.bigEndian) {
+    buf[0] = (uint8_t)((minPos >> 8) & 0xFF);
+    buf[1] = (uint8_t)(minPos & 0xFF);
+    buf[2] = (uint8_t)((maxPos >> 8) & 0xFF);
+    buf[3] = (uint8_t)(maxPos & 0xFF);
+  } else {
+    buf[0] = (uint8_t)(minPos & 0xFF);
+    buf[1] = (uint8_t)((minPos >> 8) & 0xFF);
+    buf[2] = (uint8_t)(maxPos & 0xFF);
+    buf[3] = (uint8_t)((maxPos >> 8) & 0xFF);
+  }
+  bool ok = _bus.writeData(_id, _reg.ADDR_MIN_ANGLE_LIMIT, buf, 4);
   delay(20);
   (void)write8(_reg.ADDR_WRITE_LOCK, 1);
   if (!ok) return false;
-  // Read back to confirm EEPROM accepted the write (writePacket never returns false,
-  // so without this check failures would be invisible).
   delay(5);
   uint16_t rMin = 0, rMax = 0;
   if (!readAngleLimits(rMin, rMax)) return false;
@@ -210,8 +222,10 @@ bool FeetechDevice::setPositionOffset(int16_t offset) {
 bool FeetechDevice::setDeadBand(uint8_t cwTicks, uint8_t ccwTicks) {
   if (!write8(_reg.ADDR_WRITE_LOCK, 0)) return false;
   delay(20);
-  bool ok = write8(_reg.ADDR_CW_DEAD_BAND, cwTicks);
-  if (ok) ok = write8(_reg.ADDR_CCW_DEAD_BAND, ccwTicks);
+  // Write both bytes (CW at 0x1A, CCW at 0x1B) in one packet — same reason as
+  // setAngleLimits: consecutive EEPROM cells must not be written separately.
+  uint8_t buf[2] = { cwTicks, ccwTicks };
+  bool ok = _bus.writeData(_id, _reg.ADDR_CW_DEAD_BAND, buf, 2);
   delay(20);
   (void)write8(_reg.ADDR_WRITE_LOCK, 1);
   if (!ok) return false;
