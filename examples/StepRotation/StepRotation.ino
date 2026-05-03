@@ -1,25 +1,29 @@
 // StepRotation.ino
 //
-// Demonstrates endless rotation in small increments (ST3020).
+// Servo rotates STEP_TICKS per step, pauses briefly, prints current position
+// (always 0–4095), then repeats endlessly.
 //
-// The servo advances STEP_TICKS positions at a time, pauses briefly, then
-// prints the current position — repeating forever.
+// Mode selection (automatic, based on EEPROM angle limits):
 //
-// Angle-limit handling:
-//   • No limits set (min=0, max=4095): STEP mode — position counter
-//     accumulates indefinitely; uint16 wraps after ~16 turns (65535/4096)
-//     but signed-int16 delta arithmetic handles the wrap transparently.
-//   • Limits active: POSITION mode — servo bounces (reverses direction)
-//     whenever the next step would cross a limit boundary.
+//   No limits (min=0, max=4095)  →  VELOCITY mode
+//     setTargetVelocity() spins the servo; the position register wraps
+//     naturally at 4096 and is always displayed directly (0–4095).
+//     "Step" = spin until (int16)(pos − ref) ≥ STEP_TICKS; handles the
+//     4095→0 boundary via signed-int16 arithmetic.
+//     No uint16 accumulation, no sign-bit collision at 32768.
 //
-// Why not POSITION mode for endless rotation?
-//   POSITION mode treats 0 and 4095 as opposite ends of a range, not as a
-//   circular ring.  Commanding position 3 from position 4093 sends the servo
-//   4090 steps backward instead of 6 steps forward.
+//   Limits set  →  POSITION mode
+//     moveTime() targets within [limitMin, limitMax]; direction reverses
+//     (bounces) at each boundary.
+//
+// Why not STEP mode for endless rotation?
+//   The ST3020 treats the goal-position register as a signed int16, so
+//   positions ≥ 32768 (bit 15 set) are interpreted as negative — the servo
+//   stops or reverses at 32769.  VELOCITY mode has no such limitation.
 //
 // Wiring (ESP32):
-//   GPIO17 TX --[1kΩ]--+-- SERVO BUS DATA
-//   GPIO18 RX ----------+
+//   GPIO1  TX --[1kΩ]--+-- SERVO BUS DATA
+//   GPIO2  RX ----------+
 //   GND   -------------- SERVO GND
 //   5-8.4V ------------- SERVO VCC
 
@@ -27,30 +31,28 @@
 #include <FeetechBus.h>
 #include <FeetechST3020.h>
 
-static constexpr int      TX_PIN     = 17;
-static constexpr int      RX_PIN     = 18;
+static constexpr int      TX_PIN     = 1;
+static constexpr int      RX_PIN     = 2;
 static constexpr uint32_t BAUD       = 1000000;
 
-static constexpr uint16_t STEP_TICKS = 5;    // ticks to advance each iteration
-static constexpr uint16_t STEP_TIME  = 200;  // ms allowed for each step move
-static constexpr uint16_t STEP_SPEED = 300;  // speed cap (must be > 0)
-static constexpr uint32_t PAUSE_MS   = 300;  // pause after each step
+static constexpr int16_t  STEP_TICKS = 5;    // ticks per step (velocity mode)
+static constexpr int16_t  STEP_SPEED = 200;  // running speed  (velocity mode)
+static constexpr uint16_t MOVE_SPEED = 300;  // speed cap      (position mode)
+static constexpr uint32_t PAUSE_MS   = 300;  // pause between steps
 
 FeetechBus    bus(Serial2);
-FeetechST3020 st(bus, 1);   // <-- set to your servo ID
+FeetechST3020 st(bus, 2);   // servo ID = 2
 
 uint16_t limitMin  = 0;
 uint16_t limitMax  = 4095;
 bool     hasLimits = false;
-int8_t   dir       = +1;    // +1 = forward, -1 = backward (limits mode only)
-
-uint32_t totalTicks = 0;    // cumulative tick count (circle mode only)
+int8_t   dir       = +1;   // +1 forward / -1 backward  (position/bounce mode)
 
 // ---------------------------------------------------------------------------
 
 void setup() {
   Serial.begin(115200);
-  delay(200);
+  delay(1000);   // allow USB serial to stabilise
 
   bus.beginPins(BAUD, RX_PIN, TX_PIN);
 
@@ -62,85 +64,84 @@ void setup() {
 
   st.init();
 
-  // Read angle limits to decide the operating mode.
+  // Read EEPROM angle limits to decide the operating mode.
   if (st.readAngleLimits(limitMin, limitMax)) {
     hasLimits = (limitMin > 0 || limitMax < 4095);
   }
 
   if (hasLimits) {
-    // POSITION mode: servo stays within the configured range and bounces.
-    Serial.println("Setting POSITION mode (angle limits active)...");
     if (!st.setMode(ServoMode::POSITION)) {
-      Serial.println("ERROR: setMode failed");
+      Serial.println("ERROR: setMode POSITION failed");
       while (true) delay(1000);
     }
-    Serial.print("Bouncing between ");
+    Serial.print("POSITION mode — bouncing between ");
     Serial.print(limitMin); Serial.print(" (");
-    Serial.print((uint32_t)limitMin * 360 / 4096); Serial.print("°) and ");
+    Serial.print((uint32_t)limitMin * 360 / 4096);
+    Serial.print("°) and ");
     Serial.print(limitMax); Serial.print(" (");
-    Serial.print((uint32_t)limitMax * 360 / 4096); Serial.println("°)");
+    Serial.print((uint32_t)limitMax * 360 / 4096);
+    Serial.println("°)");
   } else {
-    // STEP mode: position counter accumulates; uint16 wrap handled by signed delta.
-    Serial.println("Setting STEP mode (no angle limits — endless circle)...");
-    if (!st.setMode(ServoMode::STEP)) {
-      Serial.println("ERROR: setMode failed");
+    if (!st.setMode(ServoMode::VELOCITY)) {
+      Serial.println("ERROR: setMode VELOCITY failed");
       while (true) delay(1000);
     }
-    Serial.println("Rotating endlessly. Counter wraps after ~16 turns.");
+    Serial.println("VELOCITY mode — endless circle, position always 0–4095");
   }
 
   uint16_t startPos = 0;
   st.readPresentPosition(startPos);
   Serial.print("Start = "); Serial.print(startPos);
-  Serial.print("  ("); Serial.print((uint32_t)(startPos % 4096) * 360 / 4096);
+  Serial.print("  ("); Serial.print((uint32_t)startPos * 360 / 4096);
   Serial.println("°)\n");
 }
 
 // ---------------------------------------------------------------------------
 
 void loop() {
-  uint16_t pos = 0;
-  if (!st.readPresentPosition(pos)) {
-    Serial.println("[read error — retrying]");
-    delay(200);
+
+  // ── VELOCITY mode: endless circle ────────────────────────────────────────
+  if (!hasLimits) {
+    uint16_t ref = 0;
+    if (!st.readPresentPosition(ref)) { delay(100); return; }
+
+    // Spin forward until STEP_TICKS have been covered.
+    // Forward distance in the 0–4095 ring: (pos + 4096 − ref) % 4096
+    // e.g. ref=4093, pos=2  →  (2 + 4096 − 4093) % 4096 = 5  ✓
+    // Note: the signed-int16 trick does NOT work here because the register
+    // wraps at 4096, not 65536.
+    st.setTargetVelocity(STEP_SPEED);
+    uint16_t pos = ref;
+    while (((uint32_t)pos + 4096U - (uint32_t)ref) % 4096U < (uint32_t)STEP_TICKS) {
+      delay(5);
+      st.readPresentPosition(pos);
+    }
+
+    st.setTargetVelocity(0);   // stop and hold position
+    delay(PAUSE_MS);
+
+    st.readPresentPosition(pos);
+    // pos is always 0–4095 in VELOCITY mode — print directly
+    Serial.print("pos="); Serial.print(pos);
+    Serial.print("  ("); Serial.print((uint32_t)pos * 360 / 4096);
+    Serial.println("°)");
     return;
   }
 
-  uint16_t target;
+  // ── POSITION mode: bounce between angle limits ────────────────────────────
+  uint16_t pos = 0;
+  if (!st.readPresentPosition(pos)) { delay(100); return; }
 
-  if (hasLimits) {
-    // POSITION mode: bounce within [limitMin, limitMax]
-    int32_t next = (int32_t)pos + dir * STEP_TICKS;
-    if (next >= (int32_t)limitMax) {
-      next = limitMax;
-      dir  = -1;
-    } else if (next <= (int32_t)limitMin) {
-      next = limitMin;
-      dir  = +1;
-    }
-    target = (uint16_t)next;
-  } else {
-    // STEP mode: plain uint16 addition — overflow wraps from 65535 to 0.
-    // The servo computes direction as (int16_t)(target - current), so a
-    // 5-tick overflow (65533 → 2) is correctly seen as +5, not −65531.
-    target = (uint16_t)(pos + STEP_TICKS);
-    totalTicks += STEP_TICKS;
-  }
+  int32_t next = (int32_t)pos + dir * STEP_TICKS;
+  if (next >= (int32_t)limitMax) { next = limitMax; dir = -1; }
+  else if (next <= (int32_t)limitMin) { next = limitMin; dir  = +1; }
 
-  st.moveTime(target, STEP_TIME, STEP_SPEED);
+  st.moveTime((uint16_t)next, 200, MOVE_SPEED);
   delay(PAUSE_MS);
 
-  uint16_t actual = 0;
-  st.readPresentPosition(actual);
-
-  uint32_t angleDeg = (uint32_t)(actual % 4096) * 360 / 4096;
-  Serial.print("pos="); Serial.print(actual);
-  Serial.print("  ("); Serial.print(angleDeg); Serial.print("°)");
-
-  if (!hasLimits) {
-    Serial.print("   rev="); Serial.print(totalTicks / 4096);
-  } else {
-    Serial.print(dir == +1 ? "  →" : "  ←");
-  }
-  Serial.println();
+  st.readPresentPosition(pos);
+  Serial.print("pos="); Serial.print(pos);
+  Serial.print("  ("); Serial.print((uint32_t)pos * 360 / 4096);
+  Serial.print("°)");
+  Serial.println(dir == +1 ? "  →" : "  ←");
 }
