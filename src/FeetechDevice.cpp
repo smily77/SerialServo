@@ -121,6 +121,7 @@ bool FeetechDevice::setAcceleration(uint8_t acc) {
 }
 
 bool FeetechDevice::setTorqueLimit(uint16_t limit) {
+  if (_reg.ADDR_TORQUE_LIMIT_L == 0xFF) return false;
   return write16(_reg.ADDR_TORQUE_LIMIT_L, limit);
 }
 
@@ -146,12 +147,47 @@ bool FeetechDevice::moveTimeImpl(uint16_t position, uint16_t time, uint16_t spee
   return _bus.writeData(_id, _reg.ADDR_GOAL_POSITION_L, b, sizeof(b), async);
 }
 
+
+bool FeetechDevice::moveTimeSignedImpl(int16_t position, uint16_t time, uint16_t speed, bool async) {
+  uint16_t rawPos;
+  if (_reg.signBit15) {
+    rawPos = (uint16_t)(position < 0 ? (uint16_t)(-position) | 0x8000 : (uint16_t)position);
+  } else {
+    rawPos = (uint16_t)(position < 0 ? (uint16_t)(-position) | 0x0400 : (uint16_t)position);
+  }
+  return moveTimeImpl(rawPos, time, speed, async);
+}
 bool FeetechDevice::moveTime(uint16_t position, uint16_t time, uint16_t speed) {
   return moveTimeImpl(position, time, speed, false);
 }
 
+bool FeetechDevice::moveTimeSigned(int16_t position, uint16_t time, uint16_t speed) {
+  return moveTimeSignedImpl((int16_t)position, time, speed, false);
+}
+
 bool FeetechDevice::moveTimeAsync(uint16_t position, uint16_t time, uint16_t speed) {
   return moveTimeImpl(position, time, speed, true);
+}
+
+bool FeetechDevice::moveTimeSignedAsync(int16_t position, uint16_t time, uint16_t speed) {
+  return moveTimeSignedImpl(position, time, speed, true);
+}
+
+bool FeetechDevice::moveEx(int16_t position, uint16_t time, uint16_t speed, uint8_t acc) {
+  uint16_t rawPos;
+  if (_reg.signBit15) rawPos = (uint16_t)(position < 0 ? (uint16_t)(-position) | 0x8000 : (uint16_t)position);
+  else rawPos = (uint16_t)(position < 0 ? (uint16_t)(-position) | 0x0400 : (uint16_t)position);
+
+  uint8_t b[7];
+  b[0] = acc;
+  auto enc = [&](uint8_t* dst, uint16_t val) {
+    if (_reg.bigEndian) { dst[0]=(uint8_t)((val>>8)&0xFF); dst[1]=(uint8_t)(val&0xFF); }
+    else { dst[0]=(uint8_t)(val&0xFF); dst[1]=(uint8_t)((val>>8)&0xFF); }
+  };
+  enc(&b[1], rawPos);
+  enc(&b[3], time);
+  enc(&b[5], speed);
+  return _bus.writeData(_id, _reg.ADDR_TARGET_ACCELERATION, b, sizeof(b), false);
 }
 
 bool FeetechDevice::setTargetVelocity(int16_t velocity) {
