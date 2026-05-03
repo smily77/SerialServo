@@ -87,8 +87,15 @@ public:
   // --- Motion ---
   // Write Goal Position + Time + Speed in one packet (synchronous WRITE)
   bool moveTime(uint16_t position, uint16_t time, uint16_t speed);
+  // Signed variant (mainly for ST step mode): negative values are encoded
+  // using the family-specific sign bit (STS: bit15, SCS: bit10).
+  bool moveTimeSigned(int16_t position, uint16_t time, uint16_t speed);
   // Same but uses REGWRITE (async); execute with triggerAction()
   bool moveTimeAsync(uint16_t position, uint16_t time, uint16_t speed);
+  bool moveTimeSignedAsync(int16_t position, uint16_t time, uint16_t speed);
+  // Extended move: writes ACC + Position + Time + Speed in one packet
+  // (official ST/SMS command layout at ADDR_TARGET_ACCELERATION).
+  bool moveEx(int16_t position, uint16_t time, uint16_t speed, uint8_t acc);
   // Velocity/step mode: set running speed (signed: direction matters)
   bool setTargetVelocity(int16_t velocity);
   // Trigger execution of all pending async (REGWRITE) commands on all servos
@@ -134,4 +141,5 @@ protected:
 
 private:
   bool moveTimeImpl(uint16_t position, uint16_t time, uint16_t speed, bool async);
+  bool moveTimeSignedImpl(int16_t position, uint16_t time, uint16_t speed, bool async);
 };
